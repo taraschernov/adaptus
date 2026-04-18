@@ -56,7 +56,7 @@ ELEVENLABS_API_KEY=your_key_here     # бесплатно 20k символов/�
 - `GEMINI_API_KEY` → [aistudio.google.com](https://aistudio.google.com) → Get API Key
 - `DEEPGRAM_API_KEY` → [deepgram.com](https://deepgram.com) → Free tier 200$/мес
 - `GOOGLE_TTS_API_KEY` → [console.cloud.google.com](https://console.cloud.google.com) → Text-to-Speech API
-- `ELEVENLABS_API_KEY` → [elevenlabs.io](https://elevenlabs.io) → Free plan
+- `ELEVENLABS_API_KEY` → [elevenlabs.io](https://try.elevenlabs.io/06l31u7a522u) → Free plan
 
 ### 3. Запустить
 

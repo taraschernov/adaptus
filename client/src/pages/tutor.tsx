@@ -275,11 +275,11 @@ export default function TutorPage({
 
   return (
     <div className={cn(
-      "flex flex-col h-screen max-w-lg mx-auto",
+      "flex flex-col max-w-lg mx-auto",
       isKid
         ? "bg-gradient-to-b from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20"
         : "bg-background"
-    )}>
+    )} style={{ height: "100dvh" }}>
 
       {/* Achievement toast */}
       {achievementToast && (

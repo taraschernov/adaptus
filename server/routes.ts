@@ -335,6 +335,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
         if (typeof data === "string") {
           const msg = JSON.parse(data);
 
+          // ── Ping/pong heartbeat (Railway / Render idle timeout fix) ──
+          if (msg.type === "ping") {
+            ws.send(JSON.stringify({ type: "pong" }));
+            return;
+          }
+
           // ── Init session ──
           if (msg.type === "init") {
             const session = storage.createSession({

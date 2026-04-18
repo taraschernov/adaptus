@@ -24,11 +24,24 @@ export default function SettingsPage({ ttsProvider, onTtsChange }: SettingsPageP
 
   const { data: health } = useQuery<HealthData>({
     queryKey: ["/api/health"],
-    queryFn: () => apiRequest("GET", "/api/health"),
+    queryFn: () => apiRequest("GET", "/api/health").then(r => r.json()),
   });
 
   const copyToClipboard = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
+    try {
+      // navigator.clipboard недоступен в Telegram iframe
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).catch(() => {});
+      } else {
+        // fallback для Telegram
+        const el = document.createElement("textarea");
+        el.value = text;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand("copy");
+        document.body.removeChild(el);
+      }
+    } catch {}
     setCopied(key);
     setTimeout(() => setCopied(""), 2000);
   };

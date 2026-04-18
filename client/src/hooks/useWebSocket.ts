@@ -14,26 +14,63 @@ export function useWebSocket(onMessage: (msg: WSMessage) => void) {
   const ws = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
   const onMessageRef = useRef(onMessage);
+  const pingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   onMessageRef.current = onMessage;
 
   useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const url = `${protocol}//${window.location.host}/ws`;
-    const socket = new WebSocket(url);
-    ws.current = socket;
+    let destroyed = false;
 
-    socket.onopen = () => setConnected(true);
-    socket.onclose = () => setConnected(false);
-    socket.onerror = () => setConnected(false);
+    function connect() {
+      if (destroyed) return;
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const url = `${protocol}//${window.location.host}/ws`;
+      const socket = new WebSocket(url);
+      ws.current = socket;
 
-    socket.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data) as WSMessage;
-        onMessageRef.current(msg);
-      } catch {}
+      socket.onopen = () => {
+        setConnected(true);
+        // Heartbeat: Railway / Render закрывают idle WS через ~55 сек
+        // Отправляем ping каждые 30 сек чтобы держать соединение живым
+        pingRef.current = setInterval(() => {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "ping" }));
+          }
+        }, 30_000);
+      };
+
+      socket.onclose = () => {
+        setConnected(false);
+        if (pingRef.current) clearInterval(pingRef.current);
+        // Авто-переподключение через 3 сек
+        if (!destroyed) {
+          reconnectRef.current = setTimeout(connect, 3_000);
+        }
+      };
+
+      socket.onerror = () => {
+        setConnected(false);
+        socket.close();
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data) as WSMessage;
+          // Игнорируем pong
+          if ((msg as any).type === "pong") return;
+          onMessageRef.current(msg);
+        } catch {}
+      };
+    }
+
+    connect();
+
+    return () => {
+      destroyed = true;
+      if (pingRef.current) clearInterval(pingRef.current);
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+      ws.current?.close();
     };
-
-    return () => socket.close();
   }, []);
 
   const send = useCallback((data: object | ArrayBuffer) => {

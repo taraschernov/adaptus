@@ -72,6 +72,8 @@ npm run dev
 
 ### Railway (рекомендуется)
 
+> Зарегистрируйся на [Railway](https://railway.com?referralCode=IvqrT3) и получи бесплатные $5 кредитов.
+
 ```bash
 railway login
 railway init

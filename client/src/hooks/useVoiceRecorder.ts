@@ -2,7 +2,8 @@ import { useState, useRef, useCallback } from "react";
 
 export function useVoiceRecorder(
   onChunk: (chunk: ArrayBuffer) => void,
-  onStop: () => void
+  onStop: () => void,
+  onError?: (err: any) => void
 ) {
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
@@ -10,14 +11,24 @@ export function useVoiceRecorder(
 
   const start = useCallback(async () => {
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Microphone API not supported in this browser/environment.");
+      }
       const s = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.current = s;
 
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : "audio/webm";
+      let options = {};
+      if (typeof MediaRecorder !== "undefined" && typeof MediaRecorder.isTypeSupported === "function") {
+        if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+          options = { mimeType: "audio/webm;codecs=opus" };
+        } else if (MediaRecorder.isTypeSupported("audio/webm")) {
+          options = { mimeType: "audio/webm" };
+        } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
+          options = { mimeType: "audio/mp4" };
+        }
+      }
 
-      const mr = new MediaRecorder(s, { mimeType });
+      const mr = new MediaRecorder(s, options);
       mediaRecorder.current = mr;
 
       mr.ondataavailable = async (e) => {
@@ -35,12 +46,15 @@ export function useVoiceRecorder(
       mr.start(250); // chunk every 250ms
       setIsRecording(true);
     } catch (err) {
-      console.error("Microphone access denied:", err);
+      console.error("Microphone access denied or error:", err);
+      onError?.(err);
     }
-  }, [onChunk, onStop]);
+  }, [onChunk, onStop, onError]);
 
   const stop = useCallback(() => {
-    mediaRecorder.current?.stop();
+    if (mediaRecorder.current && mediaRecorder.current.state !== "inactive") {
+      mediaRecorder.current.stop();
+    }
     setIsRecording(false);
   }, []);
 

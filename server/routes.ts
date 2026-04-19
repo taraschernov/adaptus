@@ -234,7 +234,13 @@ async function callGemini(
     }
   );
 
-  if (!response.ok) throw new Error(`Gemini error: ${await response.text()}`);
+  if (!response.ok) {
+    const errText = await response.text();
+    if (response.status === 429) {
+      throw new Error("Лимит запросов к Gemini исчерпан. Пожалуйста, подождите или проверьте API ключ в настройках.");
+    }
+    throw new Error(`Gemini error: ${errText}`);
+  }
   const data = await response.json() as any;
   const rawText: string = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 

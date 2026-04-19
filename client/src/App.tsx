@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Router, Switch, Route } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -25,6 +25,22 @@ export default function App() {
   const [mode, setMode] = useState<AppMode>("adult");
   const [totalXP, setTotalXP] = useState(0);
   const [streak, setStreak] = useState(0);
+
+
+  
+  useEffect(() => {
+    fetch("/api/health")
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.ttsProviders && data.ttsProviders.length > 0) {
+          if (!data.ttsProviders.includes(ttsProvider)) {
+            setTtsProvider(data.ttsProviders[0]);
+          }
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSelectTopic = (topicId: string | null, topicTitle: string | null) => {
     setActiveTopic({ id: topicId, title: topicTitle });

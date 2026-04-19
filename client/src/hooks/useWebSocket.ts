@@ -42,6 +42,9 @@ export function useWebSocket(onMessage: (msg: WSMessage) => void) {
       socket.onclose = () => {
         setConnected(false);
         if (pingRef.current) clearInterval(pingRef.current);
+        // Отправляем фейковую ошибку, чтобы UI снял состояние "Думаю..."
+        onMessageRef.current({ type: "error", message: "Соединение прервано. Пытаюсь переподключиться..." });
+        
         // Авто-переподключение через 3 сек
         if (!destroyed) {
           reconnectRef.current = setTimeout(connect, 3_000);

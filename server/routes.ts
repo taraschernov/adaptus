@@ -330,10 +330,11 @@ export function registerRoutes(httpServer: Server, app: Express) {
     let audioChunks: Buffer[] = [];
     let isRecording = false;
 
-    ws.on("message", async (data: Buffer | string) => {
+    ws.on("message", async (data: any, isBinary: boolean) => {
       try {
-        if (typeof data === "string") {
-          const msg = JSON.parse(data);
+        // В ws@8 текстовые сообщения приходят как Buffer, но isBinary === false
+        if (!isBinary) {
+          const msg = JSON.parse(data.toString());
 
           // ── Ping/pong heartbeat (Railway / Render idle timeout fix) ──
           if (msg.type === "ping") {
@@ -360,9 +361,15 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
           // ── Text message ──
           } else if (msg.type === "text_message") {
-            if (!sessionId) return;
+            if (!sessionId) {
+              ws.send(JSON.stringify({ type: "error", message: "Сессия истекла (сервер перезапущен). Пожалуйста, обновите страницу." }));
+              return;
+            }
             const session = storage.getSession(sessionId);
-            if (!session) return;
+            if (!session) {
+              ws.send(JSON.stringify({ type: "error", message: "Сессия потеряна в базе данных. Пожалуйста, обновите страницу." }));
+              return;
+            }
 
             // XP за сообщение
             const updatedSession = storage.addXP(sessionId, XP.message);
@@ -443,7 +450,11 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
           } else if (msg.type === "audio_end") {
             isRecording = false;
-            if (!audioChunks.length || !sessionId) return;
+            if (!audioChunks.length) return;
+            if (!sessionId) {
+              ws.send(JSON.stringify({ type: "error", message: "Сессия истекла (сервер перезапущен). Пожалуйста, обновите страницу." }));
+              return;
+            }
             const buf = Buffer.concat(audioChunks);
             audioChunks = [];
 

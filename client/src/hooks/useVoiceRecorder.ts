@@ -43,6 +43,15 @@ export function useVoiceRecorder(
         onStop();
       };
 
+      mr.onerror = (e) => {
+        console.error("MediaRecorder error:", e);
+        if (mediaRecorder.current && mediaRecorder.current.state !== "inactive") {
+          try { mediaRecorder.current.stop(); } catch {}
+        }
+        setIsRecording(false);
+        onError?.(e);
+      };
+
       mr.start(250); // chunk every 250ms
       setIsRecording(true);
     } catch (err) {
@@ -52,10 +61,15 @@ export function useVoiceRecorder(
   }, [onChunk, onStop, onError]);
 
   const stop = useCallback(() => {
-    if (mediaRecorder.current && mediaRecorder.current.state !== "inactive") {
-      mediaRecorder.current.stop();
+    try {
+      if (mediaRecorder.current && mediaRecorder.current.state !== "inactive") {
+        mediaRecorder.current.stop();
+      }
+    } catch (err) {
+      console.error("Error stopping MediaRecorder:", err);
+    } finally {
+      setIsRecording(false);
     }
-    setIsRecording(false);
   }, []);
 
   return { isRecording, start, stop };

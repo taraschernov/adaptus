@@ -10,6 +10,7 @@ import { apiRequest } from "@/lib/queryClient";
 interface HealthData {
   status: string;
   hasGemini: boolean;
+  hasOpenRouter: boolean;
   hasDeepgram: boolean;
   ttsProviders: string[];
 }
@@ -48,6 +49,7 @@ export default function SettingsPage({ ttsProvider, onTtsChange }: SettingsPageP
 
   const apiLinks = [
     { name: "Gemini API Key (ИИ мозг)", url: "https://aistudio.google.com/apikey", active: health?.hasGemini, envKey: "GEMINI_API_KEY", required: true },
+    { name: "OpenRouter (резерв AI, бесплатно)", url: "https://openrouter.ai/keys", active: health?.hasOpenRouter, envKey: "OPENROUTER_API_KEY", required: false },
     { name: "Deepgram (голос → текст)", url: "https://console.deepgram.com/signup", active: health?.hasDeepgram, envKey: "DEEPGRAM_API_KEY", required: false },
   ];
 
@@ -159,6 +161,9 @@ export default function SettingsPage({ ttsProvider, onTtsChange }: SettingsPageP
           <div className="relative rounded-xl border bg-muted p-4">
             <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap leading-relaxed">{`GEMINI_API_KEY=your_gemini_key_here
 DEEPGRAM_API_KEY=your_deepgram_key_here
+
+# Резерв AI при исчерпании Gemini (бесплатно на openrouter.ai):
+OPENROUTER_API_KEY=your_openrouter_key_here
 
 # Выбери один (или оба — переключишь в настройках):
 GOOGLE_TTS_API_KEY=your_google_tts_key_here

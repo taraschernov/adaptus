@@ -222,12 +222,28 @@ export default function TutorPage({
 
   const { isRecording, start: startRec, stop: stopRec } = useVoiceRecorder(
     (chunk) => send(chunk),
-    () => send({ type: "audio_end" })
+    () => send({ type: "audio_end" }),
+    (err) => { setStatus("idle"); } 
   );
 
+  useEffect(() => {
+    if (isRecording) {
+      const t = setTimeout(() => {
+        if (isRecording) { stopRec(); setStatus("idle"); }
+      }, 60000);
+      return () => clearTimeout(t);
+    }
+  }, [isRecording, stopRec]);
+
   const handleVoiceToggle = () => {
-    if (isRecording) { stopRec(); setStatus("idle"); }
-    else { send({ type: "audio_start", language }); startRec(); setStatus("recording"); }
+    if (isRecording) { 
+      stopRec(); 
+      setStatus("idle"); 
+    } else { 
+      send({ type: "audio_start", language }); 
+      startRec(); 
+      setStatus("recording"); 
+    }
   };
 
   const sendText = () => {

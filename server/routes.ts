@@ -203,13 +203,33 @@ ${kidNote}
   return exercise;
 }
 
-// ─── Gemini API ───────────────────────────────────────────────────────────────
+// ─── AI providers (Gemini primary + OpenRouter fallback) ────────────────────
 
-async function callGemini(
+type AIResult = { text: string; vocab: Array<{ word: string; translation: string; lang: string; context?: string; emoji?: string }>; taskComplete?: boolean };
+
+function parseAIResponse(rawText: string): AIResult {
+  let vocab: AIResult["vocab"] = [];
+  let taskComplete = false;
+  let cleanText = rawText;
+
+  const vocabMatch = rawText.match(/\{"vocab":\s*\[[\s\S]*?\]\}/);
+  if (vocabMatch) {
+    try { vocab = JSON.parse(vocabMatch[0]).vocab || []; cleanText = cleanText.replace(vocabMatch[0], "").trim(); } catch {}
+  }
+  const taskMatch = cleanText.match(/\{"task_complete":\s*(true|false)\}/);
+  if (taskMatch) {
+    taskComplete = taskMatch[1] === "true";
+    cleanText = cleanText.replace(taskMatch[0], "").trim();
+  }
+  return { text: cleanText, vocab, taskComplete };
+}
+
+// 1. Gemini (primary)
+async function callGeminiDirect(
   systemPrompt: string,
   history: Array<{ role: string; content: string }>,
   userMessage: string
-): Promise<{ text: string; vocab: Array<{ word: string; translation: string; lang: string; context?: string; emoji?: string }>; taskComplete?: boolean }> {
+): Promise<AIResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set");
 
@@ -236,9 +256,7 @@ async function callGemini(
 
   if (!response.ok) {
     const errText = await response.text();
-    if (response.status === 429) {
-      throw new Error("Лимит запросов к Gemini исчерпан. Пожалуйста, подождите или проверьте API ключ в настройках.");
-    }
+    if (response.status === 429) throw Object.assign(new Error("quota"), { isQuota: true });
     throw new Error(`Gemini error: ${errText}`);
   }
   const data = await response.json() as any;
@@ -264,7 +282,71 @@ async function callGemini(
     cleanText = cleanText.replace(taskMatch[0], "").trim();
   }
 
-  return { text: cleanText, vocab, taskComplete };
+  return parseAIResponse(rawText);
+}
+
+// 2. OpenRouter fallback (free models, OpenAI-compatible API)
+async function callOpenRouter(
+  systemPrompt: string,
+  history: Array<{ role: string; content: string }>,
+  userMessage: string
+): Promise<AIResult> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY not set");
+
+  // Prefer free Gemini via OpenRouter, fallback to Llama
+  const model = "google/gemini-2.0-flash-exp:free";
+
+  const messages = [
+    { role: "system", content: systemPrompt },
+    ...history.map(m => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content })),
+    { role: "user", content: userMessage },
+  ];
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://lang-tutor-production.up.railway.app",
+      "X-Title": "Adaptus Language Tutor",
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      max_tokens: 512,
+      temperature: 0.7,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`OpenRouter error: ${errText}`);
+  }
+  const data = await response.json() as any;
+  const rawText: string = data.choices?.[0]?.message?.content || "";
+  return parseAIResponse(rawText);
+}
+
+// 3. Unified AI call: Gemini first → OpenRouter on quota
+async function callAI(
+  systemPrompt: string,
+  history: Array<{ role: string; content: string }>,
+  userMessage: string
+): Promise<AIResult> {
+  try {
+    return await callGeminiDirect(systemPrompt, history, userMessage);
+  } catch (err: any) {
+    if (err?.isQuota && process.env.OPENROUTER_API_KEY) {
+      console.warn("[AI] Gemini quota hit — switching to OpenRouter fallback");
+      return await callOpenRouter(systemPrompt, history, userMessage);
+    }
+    // No fallback available or non-quota error
+    if (err?.isQuota) {
+      throw new Error("Лимит AI исчерпан. Добавьте OPENROUTER_API_KEY для работы без ограничений (бесплатно на openrouter.ai).");
+    }
+    throw err;
+  }
 }
 
 // ─── Deepgram STT ─────────────────────────────────────────────────────────────
@@ -394,7 +476,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
             );
 
             ws.send(JSON.stringify({ type: "thinking" }));
-            const { text, vocab, taskComplete } = await callGemini(systemPrompt, history.slice(0, -1), msg.text);
+            const { text, vocab, taskComplete } = await callAI(systemPrompt, history.slice(0, -1), msg.text);
             storage.addMessage({ sessionId, role: "assistant", content: text, language: session.language });
 
             // Сохраняем слова
@@ -495,7 +577,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
             );
 
             ws.send(JSON.stringify({ type: "thinking" }));
-            const { text, vocab, taskComplete } = await callGemini(systemPrompt, history.slice(0, -1), transcript);
+            const { text, vocab, taskComplete } = await callAI(systemPrompt, history.slice(0, -1), transcript);
             storage.addMessage({ sessionId, role: "assistant", content: text, language: session.language });
 
             for (const v of vocab) {
@@ -603,7 +685,13 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ── REST API ──────────────────────────────────────────────────────────────
 
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", hasGemini: !!process.env.GEMINI_API_KEY, hasDeepgram: !!process.env.DEEPGRAM_API_KEY, ttsProviders: getAvailableProviders() });
+    res.json({
+      status: "ok",
+      hasGemini: !!process.env.GEMINI_API_KEY,
+      hasOpenRouter: !!process.env.OPENROUTER_API_KEY,
+      hasDeepgram: !!process.env.DEEPGRAM_API_KEY,
+      ttsProviders: getAvailableProviders()
+    });
   });
 
   // Sessions

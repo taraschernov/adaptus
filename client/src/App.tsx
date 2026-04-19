@@ -35,7 +35,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <Router hook={useHashLocation}>
         <Switch>
-          <Route path="/" component={() => (
+          <Route path="/">
             <TutorPage
               ttsProvider={ttsProvider}
               cefrLevel={cefrLevel}
@@ -50,21 +50,21 @@ export default function App() {
               onXPUpdate={setTotalXP}
               onStreakUpdate={setStreak}
             />
-          )} />
+          </Route>
           <Route path="/vocab" component={VocabPage} />
           <Route path="/review" component={ReviewPage} />
-          <Route path="/settings" component={() => (
+          <Route path="/settings">
             <SettingsPage ttsProvider={ttsProvider} onTtsChange={setTtsProvider} />
-          )} />
-          <Route path="/scenarios" component={() => (
+          </Route>
+          <Route path="/scenarios">
             <ScenariosPage
               sessionId={sessionId}
               activeScenario={activeScenario}
               cefrLevel={cefrLevel}
               onSelectScenario={(id) => { setActiveScenario(id); setActiveTopic({ id: null, title: null }); }}
             />
-          )} />
-          <Route path="/topics" component={() => (
+          </Route>
+          <Route path="/topics">
             <TopicsPage
               sessionId={sessionId}
               cefrLevel={cefrLevel}
@@ -72,23 +72,23 @@ export default function App() {
               kidMode={mode === "kid"}
               onSelectTopic={handleSelectTopic}
             />
-          )} />
-          <Route path="/exercises" component={() => (
+          </Route>
+          <Route path="/exercises">
             <ExercisesPage
               sessionId={sessionId}
               language={language}
               mode={mode}
               onXPGained={setTotalXP}
             />
-          )} />
-          <Route path="/achievements" component={() => (
+          </Route>
+          <Route path="/achievements">
             <AchievementsPage
               sessionId={sessionId}
               mode={mode}
               totalXP={totalXP}
               streak={streak}
             />
-          )} />
+          </Route>
         </Switch>
       </Router>
       <Toaster />

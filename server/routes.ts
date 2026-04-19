@@ -294,8 +294,13 @@ async function callOpenRouter(
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("OPENROUTER_API_KEY not set");
 
-  // Prefer free Gemini via OpenRouter, fallback to Llama
-  const model = "google/gemini-2.0-flash-exp:free";
+  // Ordered list of free models — tries each until one responds OK
+  const FREE_MODELS = [
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "deepseek/deepseek-r1-0528:free",
+    "google/gemma-3-27b-it:free",
+    "mistralai/mistral-7b-instruct:free",
+  ];
 
   const messages = [
     { role: "system", content: systemPrompt },
@@ -303,29 +308,32 @@ async function callOpenRouter(
     { role: "user", content: userMessage },
   ];
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://lang-tutor-production.up.railway.app",
-      "X-Title": "Adaptus Language Tutor",
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      max_tokens: 512,
-      temperature: 0.7,
-    }),
-  });
+  let lastErr = "";
+  for (const model of FREE_MODELS) {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://lang-tutor-production.up.railway.app",
+        "X-Title": "Adaptus Language Tutor",
+      },
+      body: JSON.stringify({ model, messages, max_tokens: 512, temperature: 0.7 }),
+    });
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`OpenRouter error: ${errText}`);
+    if (response.ok) {
+      const data = await response.json() as any;
+      const rawText: string = data.choices?.[0]?.message?.content || "";
+      console.log(`[AI] OpenRouter responded via model: ${model}`);
+      return parseAIResponse(rawText);
+    }
+
+    const errBody = await response.text();
+    lastErr = `${model}: ${errBody}`;
+    console.warn(`[AI] OpenRouter model ${model} failed (${response.status}), trying next…`);
   }
-  const data = await response.json() as any;
-  const rawText: string = data.choices?.[0]?.message?.content || "";
-  return parseAIResponse(rawText);
+
+  throw new Error(`Все резервные AI недоступны. Последняя ошибка: ${lastErr}`);
 }
 
 // 3. Unified AI call: Gemini first → OpenRouter on quota

@@ -212,15 +212,36 @@ function parseAIResponse(rawText: string): AIResult {
   let taskComplete = false;
   let cleanText = rawText;
 
-  const vocabMatch = rawText.match(/\{"vocab":\s*\[[\s\S]*?\]\}/);
-  if (vocabMatch) {
-    try { vocab = JSON.parse(vocabMatch[0]).vocab || []; cleanText = cleanText.replace(vocabMatch[0], "").trim(); } catch {}
+  // 1. Try to extract JSON blocks (including those wrapped in markdown ```json ... ```)
+  const jsonBlocks: string[] = [];
+  
+  // Find everything between { and } that looks like JSON
+  // Supports multiple blocks and markdown wrapping
+  const regex = /\{[\s\S]*?\}/g;
+  let match;
+  while ((match = regex.exec(rawText)) !== null) {
+    try {
+      const obj = JSON.parse(match[0]);
+      if (obj.vocab) {
+        vocab = [...vocab, ...obj.vocab];
+        cleanText = cleanText.replace(match[0], "");
+      }
+      if (obj.task_complete !== undefined) {
+        taskComplete = !!obj.task_complete;
+        cleanText = cleanText.replace(match[0], "");
+      }
+    } catch (e) {
+      // Not valid JSON or parsing error, skip this block
+    }
   }
-  const taskMatch = cleanText.match(/\{"task_complete":\s*(true|false)\}/);
-  if (taskMatch) {
-    taskComplete = taskMatch[1] === "true";
-    cleanText = cleanText.replace(taskMatch[0], "").trim();
-  }
+
+  // 2. Clean up artifacts (markdown backticks often left behind by AI)
+  cleanText = cleanText
+    .replace(/```json/g, "")
+    .replace(/```/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
   return { text: cleanText, vocab, taskComplete };
 }
 

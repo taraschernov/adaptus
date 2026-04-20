@@ -294,14 +294,11 @@ async function callOpenRouter(
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("OPENROUTER_API_KEY not set");
 
-  // Ordered list of free models — verified working 2025-04 via /api/v1/models
+  // Ordered list of free models — verified working 2025-04 via test
   const FREE_MODELS = [
-    "openai/gpt-oss-120b:free",         // GPT-class, 120B
-    "nvidia/nemotron-3-super-120b-a12b:free", // Nvidia 120B
-    "google/gemma-4-31b-it:free",       // Google Gemma 4
-    "google/gemma-4-26b-a4b-it:free",   // Google Gemma 4 (MoE)
-    "qwen/qwen3-next-80b-a3b-instruct:free", // Qwen 80B
-    "openrouter/free",                  // Generic free fallback
+    "openai/gpt-oss-120b:free",               // GPT-class 120B ✅
+    "nvidia/nemotron-3-super-120b-a12b:free", // Nvidia 120B ✅
+    "openrouter/free",                         // Generic OR fallback ✅
   ];
 
   const messages = [

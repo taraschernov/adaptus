@@ -519,13 +519,6 @@ export default function TutorPage({
       ? `🗺️ ${activeTopicTitle || activeTopicId}`
       : null;
 
-  const achievementPreview = [
-    { id: "first_step", title: "First Step", tier: "Bronze", progress: Math.min((vocabCount / 1) * 100, 100), points: 50 },
-    { id: "spark", title: "Three-Day Spark", tier: "Bronze", progress: Math.min((streak / 3) * 100, 100), points: 120 },
-    { id: "warrior", title: "Week Warrior", tier: "Silver", progress: Math.min((streak / 7) * 100, 100), points: 300 },
-    { id: "focus", title: "Deep Focus", tier: "Silver", progress: Math.min((msgCounter / 25) * 100, 100), points: 400 },
-  ];
-
   return (
     <div className={cn(
       "flex flex-col max-w-lg mx-auto",
@@ -691,65 +684,6 @@ export default function TutorPage({
             </div>
           </div>
         )}
-      </div>
-
-      <div className="px-4 py-3 border-b bg-card/45 space-y-3">
-        <div className="rounded-2xl border border-primary/25 bg-gradient-to-br from-[#f7fbfb] to-[#eef6f8] p-3">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Today&apos;s Focus</p>
-              <p className="text-sm font-semibold mt-1">
-                {learningFocus === "conversation" ? "Build a 5-turn dialog" : learningFocus === "grammar" ? "Practice one key rule" : "Balanced speaking + corrections"}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">{activeTopicTitle || activeScenarioDef?.title || "Keep the conversation alive with one follow-up question."}</p>
-            </div>
-            <div className="h-12 w-12 rounded-full border-4 border-primary/20 flex items-center justify-center text-primary text-xs font-bold">
-              {Math.round(dailyProgress)}%
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2">
-          <Link href="/scenarios">
-            <button className="w-full rounded-xl border border-border bg-card px-2 py-2 text-xs font-medium hover:border-primary/40 hover:bg-primary/5 transition-colors">
-              Start Session
-            </button>
-          </Link>
-          <Link href="/vocab">
-            <button className="w-full rounded-xl border border-border bg-card px-2 py-2 text-xs font-medium hover:border-primary/40 hover:bg-primary/5 transition-colors">
-              Log Habit
-            </button>
-          </Link>
-          <Link href="/session-review">
-            <button className="w-full rounded-xl border border-border bg-card px-2 py-2 text-xs font-medium hover:border-primary/40 hover:bg-primary/5 transition-colors">
-              Reflect
-            </button>
-          </Link>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Achievements Preview</p>
-            <Link href="/achievements">
-              <button className="text-[11px] font-medium text-primary">Open</button>
-            </Link>
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {achievementPreview.map((item) => (
-              <div key={item.id} className="min-w-[140px] rounded-xl border border-border bg-card px-2.5 py-2">
-                <div className="flex items-center justify-between gap-1">
-                  <p className="text-xs font-semibold truncate">{item.title}</p>
-                  <Badge variant="outline" className="text-[9px] h-4 px-1.5">{item.tier}</Badge>
-                </div>
-                <Progress value={item.progress} className="h-1.5 mt-2" />
-                <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
-                  <span>{Math.round(item.progress)}%</span>
-                  <span>{item.points} pts</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Status + context bar */}

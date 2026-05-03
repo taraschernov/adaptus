@@ -7,9 +7,9 @@ import { ArrowLeft, BookOpen, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { VocabCard } from "@shared/schema";
 
-let _memorySessionId: number | null = null;
-export function setSessionId(id: number) { _memorySessionId = id; }
-function getSessionId(): number | null { return _memorySessionId; }
+interface VocabPageProps {
+  sessionId: number | null;
+}
 
 function formatNextReview(nextReview: Date | string | null): string {
   if (!nextReview) return "сейчас";
@@ -25,23 +25,28 @@ function formatNextReview(nextReview: Date | string | null): string {
 
 function getStrengthColor(repetitions: number): string {
   if (repetitions === 0) return "bg-red-400";
-  if (repetitions < 3) return "bg-orange-400";
-  if (repetitions < 6) return "bg-blue-400";
-  return "bg-green-500";
+  if (repetitions < 3) return "bg-amber-400";
+  if (repetitions < 6) return "bg-indigo-400";
+  return "bg-teal-500";
 }
 
-export default function VocabPage() {
-  const sessionId = getSessionId();
+export default function VocabPage({ sessionId }: VocabPageProps) {
 
   const { data: cards = [], isLoading } = useQuery<VocabCard[]>({
     queryKey: ["/api/sessions", sessionId, "vocab"],
-    queryFn: () => sessionId ? apiRequest("GET", `/api/sessions/${sessionId}/vocab`) : Promise.resolve([]),
+    queryFn: () =>
+      sessionId
+        ? apiRequest("GET", `/api/sessions/${sessionId}/vocab`).then((res) => res.json() as Promise<VocabCard[]>)
+        : Promise.resolve([]),
     enabled: !!sessionId,
   });
 
   const { data: dueCards = [] } = useQuery<VocabCard[]>({
     queryKey: ["/api/sessions", sessionId, "vocab", "due"],
-    queryFn: () => sessionId ? apiRequest("GET", `/api/sessions/${sessionId}/vocab/due`) : Promise.resolve([]),
+    queryFn: () =>
+      sessionId
+        ? apiRequest("GET", `/api/sessions/${sessionId}/vocab/due`).then((res) => res.json() as Promise<VocabCard[]>)
+        : Promise.resolve([]),
     enabled: !!sessionId,
   });
 
@@ -50,7 +55,7 @@ export default function VocabPage() {
 
   return (
     <div className="flex flex-col min-h-screen max-w-lg mx-auto bg-background">
-      <header className="flex items-center gap-3 px-4 py-3 border-b bg-card shadow-sm">
+      <header className="flex items-center gap-3 px-4 py-3 border-b bg-card/85 backdrop-blur">
         <Link href="/">
           <button data-testid="btn-back" className="p-1.5 rounded-lg hover:bg-muted">
             <ArrowLeft size={18} />

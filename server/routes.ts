@@ -9,6 +9,7 @@ import { LEVELS } from "@shared/levels";
 import { getScenario, getScenariosForLanguage, ALL_SCENARIOS } from "@shared/scenarios";
 import { getTopic, getTopicsForLanguage, ALL_TOPICS, TOPIC_CATEGORIES } from "@shared/topics";
 import { ACHIEVEMENTS, ACHIEVEMENT_MAP } from "@shared/achievements";
+import type { LearningFocus } from "@shared/learning";
 
 const XP = {
   message: 5,
@@ -30,6 +31,7 @@ function buildSystemPrompt(
   topicId?: string | null,
   topicTitle?: string | null,
   mode: "adult" | "kid" = "adult",
+  learningFocus: LearningFocus = "balanced",
   hardWords: string[] = []
 ): string {
   const levelCfg = (LEVELS as any)[cefrLevel] || LEVELS.A1;
@@ -66,6 +68,33 @@ ${levelCfg.aiInstructions}`;
 ${levelCfg.aiInstructions}`;
   }
 
+  const focusInstructions: Record<LearningFocus, string> = {
+    conversation: `Приоритет: разговорная тренировка.
+- Веди живой диалог на целевом языке.
+- Исправляй только 1-2 ключевые ошибки за сообщение, коротко и мягко.
+- Больше вопросов пользователю, чтобы он говорил сам.`,
+    balanced: `Приоритет: разговор + закрепление.
+- Веди диалог на целевом языке, но добавляй короткие пояснения на русском при ошибках.
+- Давай мини-объяснение грамматики только когда это помогает текущей фразе.
+- Используй подход "сначала практика, потом краткое правило".`,
+    grammar: `Приоритет: понимание грамматики.
+- После ответа пользователя объясняй правило простыми словами.
+- Давай 1-2 коротких примера и мини-дрилл на закрепление.
+- Завершай ответ коротким вопросом для проверки понимания.`,
+  };
+
+  prompt += `\n\n━━━ МЕТОДИКА ОБУЧЕНИЯ ━━━
+АКТИВНЫЙ ФОКУС: ${learningFocus}
+${focusInstructions[learningFocus]}
+
+ОБЩИЕ ПРАВИЛА МЕТОДИКИ:
+- Работай циклом: практика -> мягкая коррекция -> закрепление.
+- Сначала давай понятный ответ, затем (при необходимости) короткое объяснение.
+- Не перегружай: максимум 1 новая грамматическая идея за ответ.
+- Поддерживай активное вспоминание: задавай встречные вопросы и проси составить свою фразу.
+- Если пользователь просит "просто поговорить", смещайся в разговорный режим.
+- Если пользователь просит "объясни грамматику", дай структуру: правило + пример + мини-практика.`;
+
   // Трудные слова — вплетаем в диалог
   if (hardWords.length > 0) {
     prompt += `\n\n━━━ ТРУДНЫЕ СЛОВА (вплетай естественно) ━━━
@@ -73,10 +102,14 @@ ${levelCfg.aiInstructions}`;
 Используй эти слова в разговоре естественно 1-2 раза, чтобы закрепить.`;
   }
 
-  // Блок vocab
+  // Блок vocab + corrections
   prompt += `\n\n━━━ ВЫДЕЛЕНИЕ СЛОВ ━━━
-В КАЖДОМ ответе добавляй JSON-блок с 1-3 словами:
-{"vocab": [{"word": "...", "translation": "...", "lang": "${language}", "context": "предложение", "emoji": "📖"}]}`;
+В КАЖДОМ ответе добавляй JSON-блок:
+{
+  "vocab": [{"word": "...", "translation": "...", "lang": "${language}", "context": "предложение", "emoji": "📖"}],
+  "corrections": [{"wrong":"ошибка пользователя","right":"правильный вариант","why":"кратко почему"}]
+}
+Если ошибок нет, верни "corrections": [].`;
 
   // Сценарий
   if (scenario) {
@@ -205,16 +238,137 @@ ${kidNote}
 
 // ─── AI providers (Gemini primary + OpenRouter fallback) ────────────────────
 
-type AIResult = { text: string; vocab: Array<{ word: string; translation: string; lang: string; context?: string; emoji?: string }>; taskComplete?: boolean };
+type AICorrection = { wrong: string; right: string; why?: string };
+type AIResult = {
+  text: string;
+  vocab: Array<{ word: string; translation: string; lang: string; context?: string; emoji?: string }>;
+  corrections: AICorrection[];
+  taskComplete?: boolean;
+};
+type ReviewWord = { word: string; translation: string; lang: "bg" | "en"; context?: string };
+type ReviewImprovement = { mistake: string; fix: string; why: string };
+type ReviewAlternative = { original: string; better: string };
+type SessionReviewSummary = {
+  strengths: string[];
+  improvements: ReviewImprovement[];
+  alternatives: ReviewAlternative[];
+  nextDrill: string[];
+  wordsForReview: ReviewWord[];
+};
+
+function buildLocalFallbackReply(
+  systemPrompt: string,
+  history: Array<{ role: string; content: string }>,
+  userMessage: string
+): AIResult {
+  const targetLang: "bg" | "en" = systemPrompt.includes("болгарском") ? "bg" : "en";
+  const input = userMessage.trim();
+  const normalized = input.toLowerCase();
+  const userTurns = history.filter((m) => m.role === "user").length + 1;
+  const shortInput = input.split(/\s+/).filter(Boolean).length <= 2;
+
+  const corrections: AICorrection[] = [];
+  if (/my name are/i.test(input)) {
+    corrections.push({
+      wrong: "My name are ...",
+      right: "My name is ...",
+      why: "После 'name' используется 'is'.",
+    });
+  }
+  if (/how you are/i.test(input)) {
+    corrections.push({
+      wrong: "How you are?",
+      right: "How are you?",
+      why: "В английском сначала идет глагол 'are'.",
+    });
+  }
+  if (/i am \d+ years(?! old)/i.test(input)) {
+    corrections.push({
+      wrong: input,
+      right: input.replace(/years/i, "years old"),
+      why: "Для возраста обычно используем 'years old'.",
+    });
+  }
+  if (/\bработях\b/i.test(input)) {
+    corrections.push({
+      wrong: "сега аз работях",
+      right: "сега работя",
+      why: "За действие в момента използваме сегашно време.",
+    });
+  }
+
+  const nameMatch = input.match(/my name is\s+([a-zA-Z\-']{2,30})/i);
+  const name = nameMatch?.[1];
+  const cityMatch = input.match(/\b(?:аз съм от|съм от|от)\s+([a-zа-яё\-']{2,40})/i);
+  const city = cityMatch?.[1];
+
+  if (targetLang === "en") {
+    const enQuestions = [
+      "Where are you from?",
+      "What do you do every day?",
+      "What do you like doing in your free time?",
+      "Can you ask me one short question in English?",
+    ];
+    const nextQuestion = enQuestions[Math.min(userTurns - 1, enQuestions.length - 1)];
+
+    let text = "";
+    if (shortInput) {
+      text = `Good try. Please answer with one full sentence: "I am from ... and I ...". ${nextQuestion}`;
+    } else if (name) {
+      text = `Nice to meet you, ${name}! Great start. ${nextQuestion}`;
+    } else {
+      text = `Great effort! ${nextQuestion}`;
+    }
+
+    return {
+      text,
+      vocab: [
+        { word: "from", translation: "из (откуда)", lang: "en", context: "I am from Sofia.", emoji: "🌍" },
+        { word: "work", translation: "работать", lang: "en", context: "I work every day.", emoji: "💼" },
+        { word: "free time", translation: "свободное время", lang: "en", context: "In my free time, I read.", emoji: "⏰" },
+      ],
+      corrections: corrections.slice(0, 2),
+      taskComplete: false,
+    };
+  }
+
+  const bgQuestions = [
+    "Откъде си?",
+    "Какво работиш сега?",
+    "Какво обичаш да правиш в свободното време?",
+    "Можеш ли да ми зададеш един кратък въпрос на български?",
+  ];
+  const nextQuestion = bgQuestions[Math.min(userTurns - 1, bgQuestions.length - 1)];
+
+  let text = "";
+  if (shortInput) {
+    text = `Добре! Опитай с цяло изречение на български. Пример: "Аз съм от ... и сега работя ...". ${nextQuestion}`;
+  } else if (city) {
+    text = `Чудесно, разбрах че си от ${city}. ${nextQuestion}`;
+  } else if (normalized.includes("работ")) {
+    text = `Супер, благодаря! ${nextQuestion}`;
+  } else {
+    text = `Браво за опита. ${nextQuestion}`;
+  }
+
+  return {
+    text,
+    vocab: [
+      { word: "откъде", translation: "откуда", lang: "bg", context: "Откъде си?", emoji: "🌍" },
+      { word: "работя", translation: "я работаю", lang: "bg", context: "Сега работя като ...", emoji: "💼" },
+      { word: "свободно време", translation: "свободное время", lang: "bg", context: "В свободното време ...", emoji: "⏰" },
+    ],
+    corrections: corrections.slice(0, 2),
+    taskComplete: false,
+  };
+}
 
 function parseAIResponse(rawText: string): AIResult {
   let vocab: AIResult["vocab"] = [];
+  let corrections: AIResult["corrections"] = [];
   let taskComplete = false;
   let cleanText = rawText;
 
-  // 1. Try to extract JSON blocks (including those wrapped in markdown ```json ... ```)
-  const jsonBlocks: string[] = [];
-  
   // Find everything between { and } that looks like JSON
   // Supports multiple blocks and markdown wrapping
   const regex = /\{[\s\S]*?\}/g;
@@ -222,8 +376,19 @@ function parseAIResponse(rawText: string): AIResult {
   while ((match = regex.exec(rawText)) !== null) {
     try {
       const obj = JSON.parse(match[0]);
-      if (obj.vocab) {
+      if (Array.isArray(obj.vocab)) {
         vocab = [...vocab, ...obj.vocab];
+        cleanText = cleanText.replace(match[0], "");
+      }
+      if (Array.isArray(obj.corrections)) {
+        const parsed = obj.corrections
+          .filter((x: any) => x && typeof x.wrong === "string" && typeof x.right === "string")
+          .map((x: any) => ({
+            wrong: x.wrong.trim(),
+            right: x.right.trim(),
+            why: typeof x.why === "string" ? x.why.trim() : undefined,
+          }));
+        corrections = [...corrections, ...parsed];
         cleanText = cleanText.replace(match[0], "");
       }
       if (obj.task_complete !== undefined) {
@@ -242,7 +407,7 @@ function parseAIResponse(rawText: string): AIResult {
     .replace(/\s+/g, " ")
     .trim();
 
-  return { text: cleanText, vocab, taskComplete };
+  return { text: cleanText, vocab, corrections: corrections.slice(0, 4), taskComplete };
 }
 
 // 1. Gemini (primary)
@@ -282,26 +447,6 @@ async function callGeminiDirect(
   }
   const data = await response.json() as any;
   const rawText: string = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-  let vocab: Array<{ word: string; translation: string; lang: string; context?: string; emoji?: string }> = [];
-  let taskComplete = false;
-  let cleanText = rawText;
-
-  // Парсим vocab JSON
-  const vocabMatch = rawText.match(/\{"vocab":\s*\[[\s\S]*?\]\}/);
-  if (vocabMatch) {
-    try {
-      vocab = JSON.parse(vocabMatch[0]).vocab || [];
-      cleanText = cleanText.replace(vocabMatch[0], "").trim();
-    } catch {}
-  }
-
-  // Парсим task_complete
-  const taskMatch = cleanText.match(/\{"task_complete":\s*(true|false)\}/);
-  if (taskMatch) {
-    taskComplete = taskMatch[1] === "true";
-    cleanText = cleanText.replace(taskMatch[0], "").trim();
-  }
 
   return parseAIResponse(rawText);
 }
@@ -369,6 +514,16 @@ async function callAI(
       console.warn("[AI] Gemini quota hit — switching to OpenRouter fallback");
       return await callOpenRouter(systemPrompt, history, userMessage);
     }
+
+    const allowLocalFallback =
+      process.env.ALLOW_LOCAL_AI_FALLBACK === "true" ||
+      process.env.NODE_ENV !== "production";
+
+    if (err?.isQuota && allowLocalFallback) {
+      console.warn("[AI] Gemini quota hit — using local fallback tutor for tests");
+      return buildLocalFallbackReply(systemPrompt, history, userMessage);
+    }
+
     // No fallback available or non-quota error
     if (err?.isQuota) {
       throw new Error("Лимит AI исчерпан. Добавьте OPENROUTER_API_KEY для работы без ограничений (бесплатно на openrouter.ai).");
@@ -396,21 +551,131 @@ async function transcribeAudio(audioBuffer: Buffer, language: string): Promise<s
   return data.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
 }
 
+function sanitizeSessionReview(raw: any): SessionReviewSummary {
+  const strengths = Array.isArray(raw?.strengths) ? raw.strengths.filter((x: unknown) => typeof x === "string").slice(0, 4) : [];
+  const improvements = Array.isArray(raw?.improvements)
+    ? raw.improvements
+        .filter((x: any) => x && typeof x.mistake === "string" && typeof x.fix === "string" && typeof x.why === "string")
+        .slice(0, 6)
+    : [];
+  const alternatives = Array.isArray(raw?.alternatives)
+    ? raw.alternatives
+        .filter((x: any) => x && typeof x.original === "string" && typeof x.better === "string")
+        .slice(0, 6)
+    : [];
+  const nextDrill = Array.isArray(raw?.nextDrill) ? raw.nextDrill.filter((x: unknown) => typeof x === "string").slice(0, 6) : [];
+  const wordsForReview = Array.isArray(raw?.wordsForReview)
+    ? raw.wordsForReview
+        .filter((x: any) => x && typeof x.word === "string" && typeof x.translation === "string")
+        .map((x: any) => ({
+          word: x.word,
+          translation: x.translation,
+          lang: x.lang === "en" ? "en" : "bg",
+          context: typeof x.context === "string" ? x.context : undefined,
+        }))
+        .slice(0, 8)
+    : [];
+
+  return {
+    strengths: strengths.length ? strengths : ["Ты продолжаешь практиковаться и это уже сильный прогресс."],
+    improvements,
+    alternatives,
+    nextDrill,
+    wordsForReview,
+  };
+}
+
+async function generateSessionReviewSummaryFromHistory(
+  history: Array<{ role: string; content: string }>
+): Promise<SessionReviewSummary> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY not set");
+  }
+
+  if (!history.length) {
+    return {
+      strengths: ["Сессия пока пустая. Сделай 2-3 реплики, и я дам разбор."],
+      improvements: [],
+      alternatives: [],
+      nextDrill: [],
+      wordsForReview: [],
+    };
+  }
+
+  const transcript = history
+    .map((m) => `${m.role === "assistant" ? "TUTOR" : "USER"}: ${m.content}`)
+    .join("\n");
+
+  const prompt = `Ты методист языкового обучения. Проанализируй диалог и верни ТОЛЬКО JSON.
+Не добавляй markdown, комментарии или текст вне JSON.
+
+Формат JSON:
+{
+  "strengths": ["короткие сильные стороны пользователя"],
+  "improvements": [{"mistake":"ошибка пользователя","fix":"как правильно","why":"краткое объяснение правила"}],
+  "alternatives": [{"original":"фраза пользователя","better":"более естественный вариант"}],
+  "nextDrill": ["короткие задания на следующее занятие"],
+  "wordsForReview": [{"word":"слово","translation":"перевод","lang":"bg|en","context":"контекст"}]
+}
+
+Правила:
+- strengths: 2-4 пункта.
+- improvements: 1-6 пунктов, только реальные ошибки USER.
+- alternatives: 1-6 пунктов.
+- nextDrill: 2-6 коротких практик (одно предложение каждая).
+- wordsForReview: только полезные слова из ошибок/новой лексики, максимум 8.
+
+Диалог:
+${transcript}`;
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Gemini error generating review");
+  }
+
+  const data = (await response.json()) as any;
+  const rawText: string = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  const match = rawText.match(/\{[\s\S]*\}/);
+  if (!match) {
+    throw new Error("Invalid review format from AI");
+  }
+
+  const parsed = JSON.parse(match[0]);
+  return sanitizeSessionReview(parsed);
+}
+
+async function generateSessionReviewSummary(sessionId: number): Promise<SessionReviewSummary> {
+  const history = storage.getMessages(sessionId).slice(-30);
+  return generateSessionReviewSummaryFromHistory(history);
+}
+
 // ─── Achievement checker ──────────────────────────────────────────────────────
 
 function checkAndUnlockAchievements(
   sessionId: number,
   session: any,
   vocabCount: number
-): Array<{ id: string; title: string; emoji: string; xpReward: number }> {
-  const unlocked: Array<{ id: string; title: string; emoji: string; xpReward: number }> = [];
+): Array<{ id: string; title: string; emoji: string; xpReward: number; kidTitle?: string }> {
+  const unlocked: Array<{ id: string; title: string; emoji: string; xpReward: number; kidTitle?: string }> = [];
 
   const tryUnlock = (achievementId: string) => {
     const def = ACHIEVEMENT_MAP[achievementId];
     if (!def) return;
     const result = storage.unlockAchievement(sessionId, achievementId);
     if (result) {
-      unlocked.push({ id: achievementId, title: def.title, emoji: def.emoji, xpReward: def.xpReward });
+      unlocked.push({ id: achievementId, title: def.title, emoji: def.emoji, xpReward: def.xpReward, kidTitle: def.kidTitle });
     }
   };
 
@@ -443,6 +708,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     let language: "bg" | "en" = "bg";
     let ttsProvider: string = "google";
     let mode: "adult" | "kid" = "adult";
+    let learningFocus: LearningFocus = "balanced";
     let audioChunks: Buffer[] = [];
     let isRecording = false;
 
@@ -468,11 +734,13 @@ export function registerRoutes(httpServer: Server, app: Express) {
               cefrLevel: msg.cefrLevel || "A1",
               activeScenario: msg.activeScenario || null,
               mode: msg.mode || "adult",
+              learningFocus: msg.learningFocus || "balanced",
             });
             sessionId = session.id;
             language = (msg.language || "bg") as "bg" | "en";
             ttsProvider = msg.ttsProvider || "google";
             mode = (msg.mode || "adult") as "adult" | "kid";
+            learningFocus = (msg.learningFocus || "balanced") as LearningFocus;
             ws.send(JSON.stringify({ type: "session", sessionId }));
 
           // ── Text message ──
@@ -500,11 +768,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
               session.activeTopicId,
               session.activeTopicTitle,
               (session.mode || "adult") as "adult" | "kid",
+              (session.learningFocus || "balanced") as LearningFocus,
               hardWords
             );
 
             ws.send(JSON.stringify({ type: "thinking" }));
-            const { text, vocab, taskComplete } = await callAI(systemPrompt, history.slice(0, -1), msg.text);
+            const { text, vocab, corrections, taskComplete } = await callAI(systemPrompt, history.slice(0, -1), msg.text);
             storage.addMessage({ sessionId, role: "assistant", content: text, language: session.language });
 
             // Сохраняем слова
@@ -541,14 +810,14 @@ export function registerRoutes(httpServer: Server, app: Express) {
               const a = storage.unlockAchievement(sessionId, "first_dialog");
               if (a) {
                 const def = ACHIEVEMENT_MAP["first_dialog"];
-                newAchievements.push({ id: "first_dialog", title: def.title, emoji: def.emoji, xpReward: def.xpReward });
+                newAchievements.push({ id: "first_dialog", title: def.title, emoji: def.emoji, xpReward: def.xpReward, kidTitle: def.kidTitle });
                 storage.addXP(sessionId, def.xpReward);
               }
             }
 
             const finalSession = storage.getSession(sessionId)!;
             ws.send(JSON.stringify({
-              type: "text_response", text, vocab, taskComplete,
+              type: "text_response", text, vocab, corrections, taskComplete,
               xp: finalSession.totalXP, dailyXP: finalSession.dailyXP,
               streak: finalSession.currentStreak,
               newAchievements,
@@ -601,11 +870,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
               session.activeTopicId,
               session.activeTopicTitle,
               (session.mode || "adult") as "adult" | "kid",
+              (session.learningFocus || learningFocus || "balanced") as LearningFocus,
               hardWords
             );
 
             ws.send(JSON.stringify({ type: "thinking" }));
-            const { text, vocab, taskComplete } = await callAI(systemPrompt, history.slice(0, -1), transcript);
+            const { text, vocab, corrections, taskComplete } = await callAI(systemPrompt, history.slice(0, -1), transcript);
             storage.addMessage({ sessionId, role: "assistant", content: text, language: session.language });
 
             for (const v of vocab) {
@@ -624,7 +894,16 @@ export function registerRoutes(httpServer: Server, app: Express) {
             storage.updateSession(sessionId, { vocabCount: allCards.length });
 
             const finalSession = storage.getSession(sessionId)!;
-            ws.send(JSON.stringify({ type: "text_response", text, vocab, taskComplete, xp: finalSession.totalXP, streak: finalSession.currentStreak, newAchievements: [] }));
+            ws.send(JSON.stringify({
+              type: "text_response",
+              text,
+              vocab,
+              corrections,
+              taskComplete,
+              xp: finalSession.totalXP,
+              streak: finalSession.currentStreak,
+              newAchievements: [],
+            }));
 
             const audio = await synthesize(text, session.language, ttsProvider);
             if (audio) ws.send(JSON.stringify({ type: "audio_response", audio: audio.toString("base64") }));
@@ -698,6 +977,13 @@ export function registerRoutes(httpServer: Server, app: Express) {
             mode = msg.mode;
             if (sessionId) storage.updateSession(sessionId, { mode: msg.mode });
             ws.send(JSON.stringify({ type: "mode_set", mode: msg.mode }));
+
+          } else if (msg.type === "set_learning_focus") {
+            learningFocus = msg.learningFocus || "balanced";
+            if (sessionId) {
+              storage.updateSession(sessionId, { learningFocus });
+            }
+            ws.send(JSON.stringify({ type: "learning_focus_set", learningFocus }));
           }
 
         } else {
@@ -734,6 +1020,86 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.get("/api/sessions/:id/vocab/hard", (req, res) => res.json(storage.getHardWords(Number(req.params.id))));
   app.get("/api/sessions/:id/achievements", (req, res) => res.json(storage.getAchievements(Number(req.params.id))));
   app.get("/api/sessions/:id/topics/history", (req, res) => res.json(storage.getTopicHistory(Number(req.params.id))));
+
+  app.get("/api/sessions/:id/review-summary", async (req, res) => {
+    const id = Number(req.params.id);
+    const session = storage.getSession(id);
+    if (!session) return res.status(404).json({ error: "Session not found" });
+    try {
+      const summary = await generateSessionReviewSummary(id);
+      res.json(summary);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to generate review" });
+    }
+  });
+
+  app.get("/api/sessions/:id/warmup", async (req, res) => {
+    const id = Number(req.params.id);
+    const session = storage.getSession(id);
+    if (!session) return res.status(404).json({ error: "Session not found" });
+
+    const prevSession = storage.getPreviousSessionForWarmup(id);
+    if (!prevSession) {
+      return res.json({
+        hasWarmup: false,
+        fromSessionId: null,
+        nextDrill: [],
+        improvements: [],
+        wordsForReview: [],
+      });
+    }
+
+    try {
+      const history = storage.getMessages(prevSession.id).slice(-30);
+      const summary = await generateSessionReviewSummaryFromHistory(history);
+      res.json({
+        hasWarmup: true,
+        fromSessionId: prevSession.id,
+        nextDrill: summary.nextDrill.slice(0, 3),
+        improvements: summary.improvements.slice(0, 3),
+        wordsForReview: summary.wordsForReview.slice(0, 5),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to generate warmup" });
+    }
+  });
+
+  app.post("/api/sessions/:id/review-summary/save-words", (req, res) => {
+    const id = Number(req.params.id);
+    const session = storage.getSession(id);
+    if (!session) return res.status(404).json({ error: "Session not found" });
+
+    const words = Array.isArray(req.body?.words) ? req.body.words : [];
+    if (!words.length) return res.status(400).json({ error: "words array required" });
+
+    let added = 0;
+    for (const w of words) {
+      if (!w || typeof w.word !== "string" || typeof w.translation !== "string") continue;
+      storage.addVocabCard({
+        sessionId: id,
+        word: w.word.trim(),
+        translation: w.translation.trim(),
+        context: typeof w.context === "string" ? w.context : null,
+        language: w.lang === "en" ? "en" : "bg",
+        imageEmoji: null,
+        repetitions: 0,
+        easeFactor: 2.5,
+        interval: 1,
+        nextReview: new Date(),
+        lastQuality: null,
+        failStreak: 0,
+        isHard: 0,
+      });
+      added += 1;
+    }
+
+    if (added > 0) {
+      const allCards = storage.getVocabCards(id);
+      storage.updateSession(id, { vocabCount: allCards.length });
+    }
+
+    res.json({ added });
+  });
 
   app.post("/api/sessions", (req, res) => {
     const parsed = insertSessionSchema.safeParse(req.body);

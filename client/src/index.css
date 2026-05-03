@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -6,94 +6,123 @@
 
 @layer base {
   :root {
-    /* Language tutor — warm indigo/violet for learning, calm and focused */
-    --background: 240 20% 98%;
-    --foreground: 240 15% 12%;
+    --font-sans: "Inter", system-ui, sans-serif;
+    --font-serif: "Manrope", serif;
+    --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
+    --background: 180 20% 97%;
+    --foreground: 192 10% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 240 15% 12%;
+    --card-foreground: 192 10% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 15% 12%;
-    --primary: 252 80% 60%;
+    --popover-foreground: 192 10% 11%;
+    --primary: 180 100% 20%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 10% 94%;
-    --secondary-foreground: 240 15% 25%;
-    --muted: 240 10% 94%;
-    --muted-foreground: 240 8% 55%;
-    --accent: 252 80% 60%;
+    --secondary: 233 50% 52%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 180 14% 93%;
+    --muted-foreground: 186 9% 38%;
+    --accent: 43 61% 52%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
+    --destructive: 0 78% 55%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 10% 88%;
-    --input: 240 10% 88%;
-    --ring: 252 80% 60%;
-    --radius: 0.75rem;
+    --border: 184 15% 83%;
+    --input: 184 15% 83%;
+    --ring: 180 100% 20%;
+    --card-border: 184 16% 86%;
+    --popover-border: 184 16% 86%;
+    --primary-border: rgba(0, 101, 101, 0.55);
+    --secondary-border: rgba(73, 81, 195, 0.48);
+    --muted-border: rgba(109, 129, 132, 0.35);
+    --accent-border: rgba(204, 170, 67, 0.5);
+    --destructive-border: rgba(214, 69, 69, 0.45);
+    --button-outline: rgba(0, 101, 101, 0.22);
+    --badge-outline: rgba(0, 101, 101, 0.22);
+    --radius: 1rem;
 
-    /* Custom */
-    --bg-chat: 240 18% 96%;
-    --msg-user: 252 80% 60%;
+    --bg-chat: 180 24% 95%;
+    --msg-user: 180 100% 20%;
     --msg-bot: 0 0% 100%;
-    --pulse: #7c3aed;
+    --pulse: #008080;
   }
 
   .dark {
-    --background: 240 15% 10%;
-    --foreground: 240 10% 92%;
-    --card: 240 12% 14%;
-    --card-foreground: 240 10% 92%;
-    --popover: 240 12% 14%;
-    --popover-foreground: 240 10% 92%;
-    --primary: 252 75% 65%;
+    --background: 194 22% 10%;
+    --foreground: 180 10% 93%;
+    --card: 194 18% 14%;
+    --card-foreground: 180 10% 93%;
+    --popover: 194 18% 14%;
+    --popover-foreground: 180 10% 93%;
+    --primary: 180 54% 54%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 10% 20%;
-    --secondary-foreground: 240 10% 80%;
-    --muted: 240 10% 18%;
-    --muted-foreground: 240 8% 55%;
-    --accent: 252 75% 65%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 70% 55%;
+    --secondary: 232 45% 56%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 194 13% 20%;
+    --muted-foreground: 184 8% 67%;
+    --accent: 43 55% 54%;
+    --accent-foreground: 194 22% 10%;
+    --destructive: 0 75% 58%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 10% 22%;
-    --input: 240 10% 22%;
-    --ring: 252 75% 65%;
-    --bg-chat: 240 12% 12%;
-    --msg-user: 252 75% 65%;
-    --msg-bot: 240 12% 18%;
-    --pulse: #a78bfa;
+    --border: 194 14% 27%;
+    --input: 194 14% 27%;
+    --ring: 180 54% 54%;
+    --card-border: 194 12% 30%;
+    --popover-border: 194 12% 30%;
+    --primary-border: rgba(95, 211, 211, 0.55);
+    --secondary-border: rgba(149, 154, 235, 0.5);
+    --muted-border: rgba(138, 153, 157, 0.32);
+    --accent-border: rgba(226, 187, 87, 0.5);
+    --destructive-border: rgba(226, 99, 99, 0.48);
+    --button-outline: rgba(157, 224, 224, 0.24);
+    --badge-outline: rgba(157, 224, 224, 0.24);
+    --bg-chat: 194 21% 12%;
+    --msg-user: 180 52% 45%;
+    --msg-bot: 194 15% 17%;
+    --pulse: #5fd3d3;
   }
 
   * { @apply border-border; }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: "Inter", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+    background-image:
+      radial-gradient(1200px 600px at -10% -20%, rgba(0, 128, 128, 0.09), transparent 60%),
+      radial-gradient(1000px 520px at 115% -10%, rgba(73, 81, 195, 0.12), transparent 58%),
+      linear-gradient(180deg, #f2f5f6 0%, #f8fafa 55%, #ffffff 100%);
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Manrope", "Inter", system-ui, sans-serif;
+    letter-spacing: -0.01em;
   }
 }
 
 /* Base styles & Utils */
 .glass {
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 101, 101, 0.09);
 }
 .dark .glass {
-  background: rgba(30, 30, 38, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(30, 41, 45, 0.64);
+  border: 1px solid rgba(150, 234, 231, 0.16);
 }
 
 .bg-gradient-premium {
-  background: linear-gradient(135deg, hsl(var(--primary)), hsl(280 80% 60%));
+  background: linear-gradient(135deg, #007a7a 0%, #3f67c9 58%, #ccaa43 100%);
 }
 
 /* Voice pulse animation */
 @keyframes pulse-ring {
-  0% { transform: scale(0.85); opacity: 1; border-color: rgba(255, 255, 255, 0.6); }
-  50% { border-color: rgba(255, 255, 255, 0.2); }
-  100% { transform: scale(1.6); opacity: 0; border-color: rgba(255, 255, 255, 0); }
+  0% { transform: scale(0.85); opacity: 1; border-color: rgba(0, 122, 122, 0.55); }
+  50% { border-color: rgba(73, 81, 195, 0.3); }
+  100% { transform: scale(1.6); opacity: 0; border-color: rgba(73, 81, 195, 0); }
 }
 .pulse-ring {
   animation: pulse-ring 1.5s cubic-bezier(0.25, 0.8, 0.25, 1) infinite;
-  box-shadow: 0 0 20px rgba(255, 0, 0, 0.4);
+  box-shadow: 0 0 20px rgba(0, 122, 122, 0.35);
 }
 
 /* Typing dots */
@@ -107,39 +136,39 @@
 
 /* Message bubble */
 .msg-user {
-  background: linear-gradient(135deg, hsl(252 80% 65%), hsl(280 80% 60%));
+  background: linear-gradient(135deg, #007a7a 0%, #3f67c9 100%);
   color: white;
   border-radius: 1.25rem 1.25rem 0.25rem 1.25rem;
-  box-shadow: 0 4px 15px -3px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 10px 22px -10px rgba(0, 122, 122, 0.45);
   transition: transform 0.2s ease-out;
 }
 .msg-bot {
-  background: var(--card);
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbfb 100%);
   border: 1px solid hsl(var(--border));
   border-radius: 1.25rem 1.25rem 1.25rem 0.25rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 12px 26px -20px rgba(17, 24, 39, 0.36);
   transition: transform 0.2s ease-out;
 }
 .dark .msg-bot {
-  background: rgba(30, 30, 35, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(34, 46, 50, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 4px 15px -1px rgba(0, 0, 0, 0.4);
 }
 
 /* Vocab card */
 .vocab-card {
-  background: linear-gradient(135deg, hsl(252 80% 97%), hsl(280 60% 97%));
-  border: 1px solid hsl(252 80% 88%);
+  background: linear-gradient(140deg, rgba(0, 128, 128, 0.1), rgba(73, 81, 195, 0.08));
+  border: 1px solid rgba(0, 128, 128, 0.22);
   transition: all 0.3s ease;
 }
 .vocab-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px -4px rgba(124, 58, 237, 0.2);
+  box-shadow: 0 16px 22px -18px rgba(0, 122, 122, 0.44);
 }
 .dark .vocab-card {
-  background: linear-gradient(135deg, rgba(76, 29, 149, 0.2), rgba(139, 92, 246, 0.1));
-  border-color: rgba(139, 92, 246, 0.2);
+  background: linear-gradient(135deg, rgba(0, 128, 128, 0.24), rgba(73, 81, 195, 0.2));
+  border-color: rgba(137, 206, 255, 0.22);
 }
 .dark .vocab-card:hover {
-  box-shadow: 0 6px 16px -4px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 14px 24px -16px rgba(75, 146, 255, 0.5);
 }

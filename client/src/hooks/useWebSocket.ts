@@ -1,13 +1,30 @@
 import { useEffect, useRef, useCallback, useState } from "react";
+import type { LearningFocus } from "@shared/learning";
 
 export type WSMessage =
   | { type: "session"; sessionId: number }
   | { type: "thinking" }
   | { type: "transcribing" }
   | { type: "transcript"; text: string }
-  | { type: "text_response"; text: string; vocab: Array<{ word: string; translation: string; lang: string }> }
+  | {
+      type: "text_response";
+      text: string;
+      vocab: Array<{ word: string; translation: string; lang: string }>;
+      corrections?: Array<{ wrong: string; right: string; why?: string }>;
+      taskComplete?: boolean;
+      xp?: number;
+      dailyXP?: number;
+      streak?: number;
+      newAchievements?: Array<{ id: string; title: string; emoji: string; xpReward: number; kidTitle?: string }>;
+    }
   | { type: "audio_response"; audio: string }
   | { type: "language_switched"; language: string }
+  | { type: "tts_switched"; provider: string }
+  | { type: "topic_set"; topicId: string | null; topicTitle: string | null }
+  | { type: "scenario_set"; scenarioId: string | null }
+  | { type: "cefr_level_set"; level: string }
+  | { type: "mode_set"; mode: "adult" | "kid" }
+  | { type: "learning_focus_set"; learningFocus: LearningFocus }
   | { type: "error"; message: string };
 
 export function useWebSocket(onMessage: (msg: WSMessage) => void) {

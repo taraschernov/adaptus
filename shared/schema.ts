@@ -24,6 +24,7 @@ export const sessions = sqliteTable("sessions", {
   activeScenario: text("active_scenario"),
   vocabCount: integer("vocab_count").notNull().default(0),
   mode: text("mode").notNull().default("adult"),         // "adult" | "kid"
+  learningFocus: text("learning_focus").notNull().default("balanced"),
   // Topic Talk
   activeTopicId: text("active_topic_id"),
   activeTopicTitle: text("active_topic_title"),

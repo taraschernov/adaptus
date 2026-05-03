@@ -79,9 +79,6 @@ export default function ExercisesPage({ sessionId, language, mode = "adult", onX
 
   const submitAnswer = async (answer: string) => {
     if (!exercise || state !== "active" || !sessionId) return;
-    const correct = answer.toLowerCase().trim() === exercise.type !== "word_order"
-      ? (exercise as TranslateExercise | ClozeExercise).correctAnswer.toLowerCase().trim()
-      : (exercise as WordOrderExercise).correctSentence.toLowerCase().trim();
 
     const isCorrect = answer.toLowerCase().trim() === (
       exercise.type === "word_order"
@@ -130,9 +127,9 @@ export default function ExercisesPage({ sessionId, language, mode = "adult", onX
   const randomPraise = kidPraise[Math.floor(Math.random() * kidPraise.length)];
 
   return (
-    <div className={cn("flex flex-col h-screen max-w-lg mx-auto", isKid ? "bg-gradient-to-b from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30" : "bg-background")}>
+    <div className="flex flex-col h-screen max-w-lg mx-auto bg-background">
       {/* Header */}
-      <header className="flex items-center gap-3 px-4 py-3 border-b bg-card shadow-sm">
+      <header className="flex items-center gap-3 px-4 py-3 border-b bg-card/85 backdrop-blur">
         <Link href="/">
           <button className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
             <ArrowLeft size={18} />
@@ -148,9 +145,9 @@ export default function ExercisesPage({ sessionId, language, mode = "adult", onX
         </div>
         {/* Score */}
         <div className="flex items-center gap-3 text-sm">
-          <span className="text-green-600 font-semibold">{score}✓</span>
+          <span className="text-primary font-semibold">{score}✓</span>
           <span className="text-muted-foreground">{total}</span>
-          {perfectStreak >= 3 && <span className="text-yellow-500">🔥{perfectStreak}</span>}
+          {perfectStreak >= 3 && <span className="text-amber-500">🔥{perfectStreak}</span>}
         </div>
       </header>
 
@@ -179,7 +176,7 @@ export default function ExercisesPage({ sessionId, language, mode = "adult", onX
 
         {/* XP flash */}
         {showXPFlash && (
-          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-yellow-400 text-yellow-900 font-bold px-4 py-2 rounded-full shadow-lg animate-bounce">
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-amber-300 text-amber-900 font-bold px-4 py-2 rounded-full shadow-lg animate-bounce">
             +{xpGained} XP ⚡
           </div>
         )}
@@ -195,8 +192,8 @@ export default function ExercisesPage({ sessionId, language, mode = "adult", onX
           <>
             {/* Exercise card */}
             <div className={cn(
-              "w-full rounded-2xl p-6 shadow-sm border-2 transition-colors",
-              state === "correct" ? "border-green-400 bg-green-50 dark:bg-green-950/30" :
+              "w-full rounded-2xl p-6 shadow-sm border-2 transition-colors bg-card/90",
+              state === "correct" ? "border-teal-400 bg-teal-50 dark:bg-teal-950/30" :
               state === "wrong" ? "border-red-400 bg-red-50 dark:bg-red-950/30" :
               "border-border bg-card"
             )}>
@@ -267,7 +264,7 @@ export default function ExercisesPage({ sessionId, language, mode = "adult", onX
                   const isSelected = selectedAnswer === opt;
                   const isCorrectOpt = opt.toLowerCase() === exercise.correctAnswer.toLowerCase();
                   let btnClass = "border-border bg-card text-foreground";
-                  if (state !== "active" && isCorrectOpt) btnClass = "border-green-500 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300";
+                  if (state !== "active" && isCorrectOpt) btnClass = "border-teal-500 bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-300";
                   else if (isSelected && state === "wrong") btnClass = "border-red-500 bg-red-50 dark:bg-red-950/30 text-red-700";
 
                   return (
@@ -293,14 +290,14 @@ export default function ExercisesPage({ sessionId, language, mode = "adult", onX
             {(state === "correct" || state === "wrong") && (
               <div className={cn(
                 "w-full flex items-center gap-3 p-4 rounded-xl",
-                state === "correct" ? "bg-green-100 dark:bg-green-950/40" : "bg-red-100 dark:bg-red-950/40"
+                state === "correct" ? "bg-teal-100 dark:bg-teal-950/40" : "bg-red-100 dark:bg-red-950/40"
               )}>
                 {state === "correct"
-                  ? <CheckCircle className="text-green-600 shrink-0" size={24} />
+                  ? <CheckCircle className="text-teal-600 shrink-0" size={24} />
                   : <XCircle className="text-red-500 shrink-0" size={24} />
                 }
                 <div className="flex-1">
-                  <p className={cn("font-semibold text-sm", state === "correct" ? "text-green-700 dark:text-green-300" : "text-red-600")}>
+                  <p className={cn("font-semibold text-sm", state === "correct" ? "text-teal-700 dark:text-teal-300" : "text-red-600")}>
                     {state === "correct"
                       ? (isKid ? randomPraise : "Правильно! +10 XP")
                       : (isKid ? "Почти! Попробуй ещё 💪" : "Неправильно")}

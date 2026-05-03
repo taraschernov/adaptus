@@ -6,6 +6,8 @@ import { ArrowLeft, Settings, ExternalLink, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import type { LearningFocus } from "@shared/learning";
+import { LEARNING_FOCUS_LABELS } from "@shared/learning";
 
 interface HealthData {
   status: string;
@@ -17,11 +19,19 @@ interface HealthData {
 
 interface SettingsPageProps {
   ttsProvider: string;
+  learningFocus: LearningFocus;
   onTtsChange: (provider: string) => void;
+  onLearningFocusChange: (focus: LearningFocus) => void;
 }
 
-export default function SettingsPage({ ttsProvider, onTtsChange }: SettingsPageProps) {
+export default function SettingsPage({
+  ttsProvider,
+  learningFocus,
+  onTtsChange,
+  onLearningFocusChange,
+}: SettingsPageProps) {
   const [copied, setCopied] = useState("");
+  const envFilePath = "C:\\Users\\taras\\Documents\\New project\\adaptus\\.env";
 
   const { data: health } = useQuery<HealthData>({
     queryKey: ["/api/health"],
@@ -45,6 +55,15 @@ export default function SettingsPage({ ttsProvider, onTtsChange }: SettingsPageP
     } catch {}
     setCopied(key);
     setTimeout(() => setCopied(""), 2000);
+  };
+
+  const openExternal = (url: string) => {
+    const tg = (window as any)?.Telegram?.WebApp;
+    if (tg?.openLink) {
+      tg.openLink(url);
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const apiLinks = [
@@ -72,9 +91,24 @@ export default function SettingsPage({ ttsProvider, onTtsChange }: SettingsPageP
     },
   ];
 
+  const learningFocusOptions: Array<{ id: LearningFocus; description: string }> = [
+    {
+      id: "conversation",
+      description: "Больше живого диалога и тренировки речи.",
+    },
+    {
+      id: "balanced",
+      description: "Диалог + разбор ошибок + микро-объяснение грамматики.",
+    },
+    {
+      id: "grammar",
+      description: "Больше объяснений правил, примеров и мини-дриллов.",
+    },
+  ];
+
   return (
     <div className="flex flex-col min-h-screen max-w-lg mx-auto bg-background">
-      <header className="flex items-center gap-3 px-4 py-3 border-b bg-card shadow-sm">
+      <header className="flex items-center gap-3 px-4 py-3 border-b bg-card/85 backdrop-blur">
         <Link href="/">
           <button data-testid="btn-back" className="p-1.5 rounded-lg hover:bg-muted">
             <ArrowLeft size={18} />
@@ -85,6 +119,43 @@ export default function SettingsPage({ ttsProvider, onTtsChange }: SettingsPageP
       </header>
 
       <div className="flex-1 px-4 py-4 space-y-6">
+        {/* Where to store keys */}
+        <section>
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Где хранятся ключи</h2>
+          <div className="rounded-xl border bg-card p-4 space-y-2">
+            <p className="text-sm">Ключи вводятся в файл <code className="text-xs bg-muted px-1 rounded">.env</code>, не в форму внутри приложения.</p>
+            <p className="text-xs font-mono text-muted-foreground break-all">{envFilePath}</p>
+            <p className="text-xs text-muted-foreground">После изменения файла перезапусти сервер, чтобы применить ключи.</p>
+          </div>
+        </section>
+
+        {/* Learning focus */}
+        <section>
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Режим обучения</h2>
+          <div className="space-y-2">
+            {learningFocusOptions.map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => onLearningFocusChange(opt.id)}
+                className={cn(
+                  "w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all",
+                  learningFocus === opt.id ? "border-primary bg-primary/5" : "bg-card hover:bg-muted"
+                )}
+              >
+                <div
+                  className={cn(
+                    "w-4 h-4 rounded-full border-2 mt-0.5 flex-shrink-0",
+                    learningFocus === opt.id ? "border-primary bg-primary" : "border-muted-foreground"
+                  )}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{LEARNING_FOCUS_LABELS[opt.id]}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{opt.description}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
 
         {/* TTS switcher */}
         <section>
@@ -114,14 +185,20 @@ export default function SettingsPage({ ttsProvider, onTtsChange }: SettingsPageP
                 </div>
                 <div className="flex items-center gap-1">
                   {opt.available
-                    ? <Badge variant="outline" className="text-xs text-green-600 border-green-300">Активен</Badge>
+                    ? <Badge variant="outline" className="text-xs text-teal-600 border-teal-300">Активен</Badge>
                     : <Badge variant="outline" className="text-xs">Ключ не задан</Badge>
                   }
-                  <a href={opt.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
-                    <button className="p-1 rounded hover:bg-muted text-muted-foreground">
-                      <ExternalLink size={12} />
-                    </button>
-                  </a>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openExternal(opt.url);
+                    }}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground"
+                    aria-label={`Открыть ${opt.name}`}
+                  >
+                    <ExternalLink size={12} />
+                  </button>
                 </div>
               </button>
             ))}
@@ -137,18 +214,22 @@ export default function SettingsPage({ ttsProvider, onTtsChange }: SettingsPageP
           <div className="space-y-2">
             {apiLinks.map(api => (
               <div key={api.envKey} className="flex items-center gap-3 p-3 rounded-xl border bg-card">
-                <div className={cn("w-2 h-2 rounded-full flex-shrink-0", api.active ? "bg-green-500" : "bg-red-400")} />
+                <div className={cn("w-2 h-2 rounded-full flex-shrink-0", api.active ? "bg-teal-500" : "bg-red-400")} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{api.name}</p>
                   <p className="text-xs text-muted-foreground font-mono">{api.envKey}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   {api.required && !api.active && <Badge variant="destructive" className="text-xs">Обязателен</Badge>}
-                  <a href={api.url} target="_blank" rel="noopener noreferrer">
-                    <button data-testid={`btn-api-${api.envKey}`} className="p-1.5 rounded hover:bg-muted text-muted-foreground">
-                      <ExternalLink size={14} />
-                    </button>
-                  </a>
+                  <button
+                    type="button"
+                    data-testid={`btn-api-${api.envKey}`}
+                    onClick={() => openExternal(api.url)}
+                    className="p-1.5 rounded hover:bg-muted text-muted-foreground"
+                    aria-label={`Открыть ${api.name}`}
+                  >
+                    <ExternalLink size={14} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -170,13 +251,16 @@ GOOGLE_TTS_API_KEY=your_google_tts_key_here
 ELEVENLABS_API_KEY=your_elevenlabs_key_here
 
 NODE_ENV=production
-PORT=5000`}</pre>
+PORT=5000
+
+# Для локальных тестов (чтобы не блокироваться при квоте Gemini):
+ALLOW_LOCAL_AI_FALLBACK=true`}</pre>
             <button
-              onClick={() => copyToClipboard("GEMINI_API_KEY=\nDEEPGRAM_API_KEY=\nGOOGLE_TTS_API_KEY=\nELEVENLABS_API_KEY=\nNODE_ENV=production\nPORT=5000", "env")}
+              onClick={() => copyToClipboard("GEMINI_API_KEY=\nDEEPGRAM_API_KEY=\nGOOGLE_TTS_API_KEY=\nELEVENLABS_API_KEY=\nOPENROUTER_API_KEY=\nNODE_ENV=development\nPORT=5000\nALLOW_LOCAL_AI_FALLBACK=true", "env")}
               data-testid="btn-copy-env"
               className="absolute top-3 right-3 p-1.5 rounded hover:bg-background text-muted-foreground"
             >
-              {copied === "env" ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+              {copied === "env" ? <Check size={14} className="text-teal-500" /> : <Copy size={14} />}
             </button>
           </div>
         </section>

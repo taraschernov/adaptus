@@ -13,10 +13,10 @@ import { TOPIC_CATEGORIES } from "@shared/topics";
 type Language = "bg" | "en";
 
 const CEFR_COLORS: Record<string, string> = {
-  A1: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-  A2: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
-  B1: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  B2: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300",
+  A1: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300",
+  A2: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300",
+  B1: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
+  B2: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
 };
 
 interface TopicsPageProps {
@@ -39,7 +39,7 @@ export default function TopicsPage({ sessionId, cefrLevel, language, kidMode = f
     queryFn: () => apiRequest("GET", `/api/topics?lang=${activeLang}${kidMode ? "&kid=true" : ""}`).then(r => r.json()),
   });
 
-  const categories = [...new Set(topics.map(t => t.category))] as TopicCategory[];
+  const categories = Array.from(new Set(topics.map((t) => t.category))) as TopicCategory[];
 
   const filtered = topics.filter(t =>
     activeCategory === "all" || t.category === activeCategory
@@ -57,12 +57,9 @@ export default function TopicsPage({ sessionId, cefrLevel, language, kidMode = f
   };
 
   return (
-    <div className={cn(
-      "flex flex-col h-screen max-w-lg mx-auto",
-      kidMode ? "bg-gradient-to-b from-yellow-50 to-green-50 dark:from-yellow-950/20 dark:to-green-950/20" : "bg-background"
-    )}>
+    <div className="flex flex-col h-screen max-w-lg mx-auto bg-background">
       {/* Header */}
-      <header className="flex items-center gap-3 px-4 py-3 border-b bg-card shadow-sm">
+      <header className="flex items-center gap-3 px-4 py-3 border-b bg-card/85 backdrop-blur">
         <Link href="/">
           <button className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
             <ArrowLeft size={18} />
@@ -117,7 +114,7 @@ export default function TopicsPage({ sessionId, cefrLevel, language, kidMode = f
       <div className="px-4 pt-3">
         {!showCustom ? (
           <button onClick={() => setShowCustom(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 text-left transition-all">
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border-2 border-dashed border-primary/30 hover:border-primary/60 text-left transition-all">
             <span className="text-2xl">✏️</span>
             <div>
               <p className="text-sm font-medium">{kidMode ? "Своя тема!" : "Своя тема"}</p>
@@ -160,7 +157,7 @@ export default function TopicsPage({ sessionId, cefrLevel, language, kidMode = f
               <button key={topic.id} data-testid={`topic-${topic.id}`}
                 onClick={() => handleSelect(topic.id, topic.title)}
                 className={cn(
-                  "w-full flex items-start gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all hover:border-primary/50",
+                  "w-full flex items-start gap-3 px-4 py-3 rounded-2xl border-2 text-left transition-all hover:border-primary/50",
                   isCurrentLevel ? "border-primary/30 bg-primary/5" : "border-border bg-card"
                 )}>
                 <span className="text-2xl mt-0.5 shrink-0">

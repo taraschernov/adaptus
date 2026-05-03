@@ -21,17 +21,16 @@ import type { VocabCard } from "@shared/schema";
 // SM-2 качество — кнопки для пользователя
 const QUALITY_BUTTONS = [
   { quality: 0, label: "Забыл", description: "Вообще не помнил", color: "bg-red-500 hover:bg-red-600", icon: X },
-  { quality: 2, label: "Трудно", description: "Вспомнил с трудом", color: "bg-orange-500 hover:bg-orange-600", icon: RotateCcw },
-  { quality: 4, label: "Хорошо", description: "Вспомнил с паузой", color: "bg-blue-500 hover:bg-blue-600", icon: Check },
-  { quality: 5, label: "Отлично", description: "Моментально", color: "bg-green-500 hover:bg-green-600", icon: Trophy },
+  { quality: 2, label: "Трудно", description: "Вспомнил с трудом", color: "bg-amber-500 hover:bg-amber-600", icon: RotateCcw },
+  { quality: 4, label: "Хорошо", description: "Вспомнил с паузой", color: "bg-indigo-500 hover:bg-indigo-600", icon: Check },
+  { quality: 5, label: "Отлично", description: "Моментально", color: "bg-teal-600 hover:bg-teal-700", icon: Trophy },
 ];
 
-// SessionId из памяти
-let _sid: number | null = null;
-export function setReviewSessionId(id: number) { _sid = id; }
+interface ReviewPageProps {
+  sessionId: number | null;
+}
 
-export default function ReviewPage() {
-  const sessionId = _sid;
+export default function ReviewPage({ sessionId }: ReviewPageProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [finished, setFinished] = useState(false);
@@ -42,7 +41,7 @@ export default function ReviewPage() {
   const { data: dueCards = [], isLoading } = useQuery<VocabCard[]>({
     queryKey: ["/api/sessions", sessionId, "vocab", "due"],
     queryFn: () => sessionId
-      ? apiRequest("GET", `/api/sessions/${sessionId}/vocab/due`)
+      ? apiRequest("GET", `/api/sessions/${sessionId}/vocab/due`).then((res) => res.json() as Promise<VocabCard[]>)
       : Promise.resolve([]),
     enabled: !!sessionId,
   });
@@ -77,7 +76,7 @@ export default function ReviewPage() {
 
   return (
     <div className="flex flex-col min-h-screen max-w-lg mx-auto bg-background">
-      <header className="flex items-center gap-3 px-4 py-3 border-b bg-card shadow-sm">
+      <header className="flex items-center gap-3 px-4 py-3 border-b bg-card/85 backdrop-blur">
         <Link href="/vocab">
           <button data-testid="btn-back" className="p-1.5 rounded-lg hover:bg-muted">
             <ArrowLeft size={18} />
@@ -100,7 +99,7 @@ export default function ReviewPage() {
 
         {!isLoading && dueCards.length === 0 && (
           <div className="text-center py-8">
-            <Trophy size={48} className="mx-auto mb-4 text-yellow-500" />
+            <Trophy size={48} className="mx-auto mb-4 text-amber-500" />
             <h2 className="font-semibold text-lg">Всё повторено!</h2>
             <p className="text-sm text-muted-foreground mt-2">На сегодня повторений нет.</p>
             <p className="text-xs text-muted-foreground mt-1">Алгоритм напомнит когда нужно.</p>
@@ -112,13 +111,13 @@ export default function ReviewPage() {
 
         {!isLoading && finished && results.length > 0 && (
           <div className="text-center py-8 w-full max-w-sm">
-            <Trophy size={48} className="mx-auto mb-4 text-yellow-500" />
+            <Trophy size={48} className="mx-auto mb-4 text-amber-500" />
             <h2 className="font-semibold text-lg">Сессия завершена</h2>
             <div className="grid grid-cols-2 gap-3 mt-6">
               {[
-                { label: "Отлично", count: results.filter(r => r.quality === 5).length, color: "text-green-600" },
-                { label: "Хорошо", count: results.filter(r => r.quality === 4).length, color: "text-blue-600" },
-                { label: "Трудно", count: results.filter(r => r.quality === 2).length, color: "text-orange-600" },
+                { label: "Отлично", count: results.filter(r => r.quality === 5).length, color: "text-teal-600" },
+                { label: "Хорошо", count: results.filter(r => r.quality === 4).length, color: "text-indigo-600" },
+                { label: "Трудно", count: results.filter(r => r.quality === 2).length, color: "text-amber-600" },
                 { label: "Забыл", count: results.filter(r => r.quality === 0).length, color: "text-red-600" },
               ].map(s => (
                 <div key={s.label} className="rounded-xl border bg-card p-3 text-center">

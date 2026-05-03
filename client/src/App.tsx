@@ -12,6 +12,8 @@ import ScenariosPage from "@/pages/scenarios";
 import TopicsPage from "@/pages/topics";
 import ExercisesPage from "@/pages/exercises";
 import AchievementsPage from "@/pages/achievements";
+import SessionReviewPage from "@/pages/session-review";
+import type { LearningFocus } from "@shared/learning";
 
 export type AppMode = "adult" | "kid";
 
@@ -23,6 +25,7 @@ export default function App() {
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [language, setLanguage] = useState<"bg" | "en">("bg");
   const [mode, setMode] = useState<AppMode>("adult");
+  const [learningFocus, setLearningFocus] = useState<LearningFocus>("balanced");
   const [totalXP, setTotalXP] = useState(0);
   const [streak, setStreak] = useState(0);
 
@@ -59,6 +62,7 @@ export default function App() {
               activeTopicId={activeTopic.id}
               activeTopicTitle={activeTopic.title}
               mode={mode}
+              learningFocus={learningFocus}
               onSessionInit={setSessionId}
               onCefrLevelChange={setCefrLevel}
               onLanguageChange={setLanguage}
@@ -67,10 +71,19 @@ export default function App() {
               onStreakUpdate={setStreak}
             />
           </Route>
-          <Route path="/vocab" component={VocabPage} />
-          <Route path="/review" component={ReviewPage} />
+          <Route path="/vocab">
+            <VocabPage sessionId={sessionId} />
+          </Route>
+          <Route path="/review">
+            <ReviewPage sessionId={sessionId} />
+          </Route>
           <Route path="/settings">
-            <SettingsPage ttsProvider={ttsProvider} onTtsChange={setTtsProvider} />
+            <SettingsPage
+              ttsProvider={ttsProvider}
+              learningFocus={learningFocus}
+              onTtsChange={setTtsProvider}
+              onLearningFocusChange={setLearningFocus}
+            />
           </Route>
           <Route path="/scenarios">
             <ScenariosPage
@@ -104,6 +117,9 @@ export default function App() {
               totalXP={totalXP}
               streak={streak}
             />
+          </Route>
+          <Route path="/session-review">
+            <SessionReviewPage sessionId={sessionId} />
           </Route>
         </Switch>
       </Router>

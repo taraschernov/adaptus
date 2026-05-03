@@ -11,10 +11,10 @@ import type { Scenario } from "@shared/scenarios";
 type Language = "bg" | "en";
 
 const LEVEL_COLORS: Record<string, string> = {
-  A1: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-  A2: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
-  B1: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  B2: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300",
+  A1: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300",
+  A2: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300",
+  B1: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
+  B2: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
 };
 
 interface ScenariosPageProps {
@@ -49,7 +49,7 @@ export default function ScenariosPage({
   return (
     <div className="flex flex-col h-screen max-w-lg mx-auto bg-background">
       {/* Header */}
-      <header className="flex items-center gap-3 px-4 py-3 border-b bg-card shadow-sm">
+      <header className="flex items-center gap-3 px-4 py-3 border-b bg-card/85 backdrop-blur">
         <Link href="/">
           <button
             data-testid="btn-back"
@@ -91,9 +91,9 @@ export default function ScenariosPage({
           data-testid="btn-free-chat"
           onClick={() => handleSelect(null)}
           className={cn(
-            "w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all text-left",
+            "w-full flex items-center gap-3 px-4 py-3 rounded-2xl border-2 transition-all text-left",
             selected === null
-              ? "border-primary bg-primary/5"
+              ? "border-primary/40 bg-primary/5"
               : "border-border hover:border-muted-foreground/50"
           )}
         >
@@ -131,9 +131,9 @@ export default function ScenariosPage({
                 data-testid={`scenario-${s.id}`}
                 onClick={() => handleSelect(s.id)}
                 className={cn(
-                  "w-full flex items-start gap-3 px-4 py-3 rounded-xl border-2 transition-all text-left",
+                  "w-full flex items-start gap-3 px-4 py-3 rounded-2xl border-2 transition-all text-left",
                   isActive
-                    ? "border-primary bg-primary/5"
+                    ? "border-primary/40 bg-primary/5"
                     : "border-border hover:border-muted-foreground/50"
                 )}
               >

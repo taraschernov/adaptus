@@ -5,7 +5,7 @@ import type {
   Session, Message, VocabCard, Achievement, Profile, TopicHistory,
   InsertSession, InsertMessage, InsertVocabCard, InsertProfile,
 } from "@shared/schema";
-import { eq, desc, and, lte } from "drizzle-orm";
+import { eq, desc, and, lte, ne } from "drizzle-orm";
 
 const sqlite = new Database("lang-tutor.db");
 export const db = drizzle(sqlite);
@@ -30,6 +30,7 @@ sqlite.exec(`
     active_scenario TEXT,
     vocab_count INTEGER NOT NULL DEFAULT 0,
     mode TEXT NOT NULL DEFAULT 'adult',
+    learning_focus TEXT NOT NULL DEFAULT 'balanced',
     active_topic_id TEXT,
     active_topic_title TEXT,
     current_streak INTEGER NOT NULL DEFAULT 0,
@@ -83,6 +84,17 @@ sqlite.exec(`
   );
 `);
 
+type TableInfoRow = { name: string };
+
+function hasColumn(table: string, column: string): boolean {
+  const rows = sqlite.prepare(`PRAGMA table_info(${table})`).all() as TableInfoRow[];
+  return rows.some((row) => row.name === column);
+}
+
+if (!hasColumn("sessions", "learning_focus")) {
+  sqlite.exec("ALTER TABLE sessions ADD COLUMN learning_focus TEXT NOT NULL DEFAULT 'balanced';");
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function todayStr(): string {
@@ -134,6 +146,7 @@ export interface IStorage {
   // Sessions
   createSession(data: InsertSession): Session;
   getSession(id: number): Session | undefined;
+  getPreviousSessionForWarmup(sessionId: number): Session | undefined;
   updateSession(id: number, data: Partial<Session>): void;
 
   // Gamification
@@ -180,6 +193,21 @@ export class Storage implements IStorage {
   }
   getSession(id: number): Session | undefined {
     return db.select().from(sessions).where(eq(sessions.id, id)).get();
+  }
+  getPreviousSessionForWarmup(sessionId: number): Session | undefined {
+    const current = this.getSession(sessionId);
+    if (!current) return undefined;
+
+    if (current.telegramId) {
+      return db
+        .select()
+        .from(sessions)
+        .where(and(eq(sessions.telegramId, current.telegramId), ne(sessions.id, sessionId)))
+        .orderBy(desc(sessions.id))
+        .get();
+    }
+
+    return db.select().from(sessions).where(ne(sessions.id, sessionId)).orderBy(desc(sessions.id)).get();
   }
   updateSession(id: number, data: Partial<Session>): void {
     db.update(sessions).set(data).where(eq(sessions.id, id)).run();

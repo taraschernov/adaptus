@@ -507,28 +507,46 @@ async function callAI(
   history: Array<{ role: string; content: string }>,
   userMessage: string
 ): Promise<AIResult> {
+  const allowLocalFallback =
+    process.env.ALLOW_LOCAL_AI_FALLBACK === "true" ||
+    process.env.NODE_ENV !== "production";
+
   try {
     return await callGeminiDirect(systemPrompt, history, userMessage);
   } catch (err: any) {
-    if (err?.isQuota && process.env.OPENROUTER_API_KEY) {
-      console.warn("[AI] Gemini quota hit — switching to OpenRouter fallback");
-      return await callOpenRouter(systemPrompt, history, userMessage);
+    const shouldTryOpenRouter = !!process.env.OPENROUTER_API_KEY && (err?.isQuota || !process.env.GEMINI_API_KEY);
+
+    if (shouldTryOpenRouter) {
+      try {
+        console.warn("[AI] Gemini unavailable — switching to OpenRouter fallback");
+        return await callOpenRouter(systemPrompt, history, userMessage);
+      } catch (openRouterErr: any) {
+        const msg = String(openRouterErr?.message || "");
+        const isAuthError = msg.includes("401") || msg.toLowerCase().includes("user not found") || msg.toLowerCase().includes("unauthorized");
+        if (isAuthError) {
+          console.warn("[AI] OpenRouter key invalid/unauthorized, using local fallback if allowed");
+        } else {
+          console.warn("[AI] OpenRouter failed, using local fallback if allowed");
+        }
+
+        if (allowLocalFallback) {
+          return buildLocalFallbackReply(systemPrompt, history, userMessage);
+        }
+
+        throw new Error("AI временно недоступен. Проверьте GEMINI_API_KEY / OPENROUTER_API_KEY и перезапустите сервер.");
+      }
     }
 
-    const allowLocalFallback =
-      process.env.ALLOW_LOCAL_AI_FALLBACK === "true" ||
-      process.env.NODE_ENV !== "production";
-
-    if (err?.isQuota && allowLocalFallback) {
-      console.warn("[AI] Gemini quota hit — using local fallback tutor for tests");
+    if (allowLocalFallback) {
+      console.warn("[AI] Gemini unavailable — using local fallback tutor");
       return buildLocalFallbackReply(systemPrompt, history, userMessage);
     }
 
     // No fallback available or non-quota error
     if (err?.isQuota) {
-      throw new Error("Лимит AI исчерпан. Добавьте OPENROUTER_API_KEY для работы без ограничений (бесплатно на openrouter.ai).");
+      throw new Error("Лимит AI исчерпан. Добавьте валидный OPENROUTER_API_KEY для работы без ограничений (бесплатно на openrouter.ai).");
     }
-    throw err;
+    throw new Error("AI временно недоступен. Проверьте ключи API и перезапустите сервер.");
   }
 }
 
